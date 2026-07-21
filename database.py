@@ -1,7 +1,7 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
-DATABASE_URL = "postgresql://postgres:MyRealPassword@localhost:5432/music_store"
+DATABASE_URL = "postgresql://postgres:YOUR_PASSWORD@localhost:5432/music_store"
 
 engine = create_engine(DATABASE_URL)
 
@@ -21,8 +21,4 @@ def get_db():
         yield db
 
     finally:
-<<<<<<< HEAD
         db.close()
-=======
-        db.close()
->>>>>>> 26687e4fd591bee1d22d307f372226e2b7518d08
