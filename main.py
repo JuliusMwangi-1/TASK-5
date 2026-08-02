@@ -1,3 +1,9 @@
+from auth import get_current_user
+
+from email_utils import (
+    send_order_email,
+    send_order_status_email
+)
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 
@@ -314,3 +320,59 @@ def delete_product(
     return {
         "message": "Product deleted successfully."
     }
+
+@app.post("/order", response_model=schemas.OrderOut)
+def create_order(
+    order: schemas.OrderCreate,
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+
+    db_order = crud.create_order(
+        db=db,
+        user_id=current_user.id,
+        order=order
+    )
+
+    send_order_email(
+        current_user.email,
+        db_order,
+        db_order.items
+    )
+
+    return db_order
+
+@app.put("/order/{order_id}/status", response_model=schemas.OrderOut)
+def update_order_status(
+    order_id: int,
+    request: schemas.OrderStatusUpdate,
+    current_admin=Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+
+    order = crud.update_order_status(
+        db,
+        order_id,
+        request.status
+    )
+
+    if order is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Order not found."
+        )
+
+    user = (
+        db.query(models.User)
+        .filter(models.User.id == order.user_id)
+        .first()
+    )
+
+    send_order_status_email(
+        user.email,
+        order.id,
+        order.status
+    )
+
+    return order
+

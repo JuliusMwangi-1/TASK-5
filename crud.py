@@ -1,3 +1,4 @@
+from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 import models
@@ -149,3 +150,87 @@ def update_password(
     db.refresh(user)
 
     return user
+
+# ORDER CRUD
+
+def create_order(
+    db: Session,
+    user_id: int,
+    order: schemas.OrderCreate
+):
+    total_cost = 0
+
+    db_order = models.Order(
+        user_id=user_id,
+        total_cost=0,
+        status="Pending"
+    )
+
+    db.add(db_order)
+    db.commit()
+    db.refresh(db_order)
+
+    for item in order.items:
+
+        product = (
+            db.query(models.Product)
+            .filter(models.Product.id == item.product_id)
+            .first()
+        )
+
+        if product is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Product {item.product_id} not found."
+            )
+
+        subtotal = product.cost * item.quantity
+        total_cost += subtotal
+
+        order_item = models.OrderItem(
+            order_id=db_order.id,
+            product_id=product.id,
+            quantity=item.quantity,
+            subtotal=subtotal
+        )
+
+        db.add(order_item)
+
+    db_order.total_cost = total_cost
+
+    db.commit()
+    db.refresh(db_order)
+
+    return db_order
+
+
+def get_order(
+    db: Session,
+    order_id: int
+):
+    return (
+        db.query(models.Order)
+        .filter(models.Order.id == order_id)
+        .first()
+    )
+
+
+def update_order_status(
+    db: Session,
+    order_id: int,
+    status: str
+):
+    order = get_order(
+        db,
+        order_id
+    )
+
+    if order is None:
+        return None
+
+    order.status = status
+
+    db.commit()
+    db.refresh(order)
+
+    return order
